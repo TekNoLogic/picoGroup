@@ -11,4 +11,4 @@
 embeds.xml
 
 locale-enUS.lua
-Broker_Group.lua
+picoGroup.lua
