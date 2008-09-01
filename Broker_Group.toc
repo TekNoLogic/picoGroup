@@ -1,0 +1,14 @@
+## Interface: 20400
+## Title: Broker [Group]
+## Author: Tristanian
+## Notes: Minimalistic LDB plugin that shows loot type information and handles rolls.
+## OptionalDeps: Ace2, Ace3, Deformat
+## SavedVariables: Broker_GroupConfig
+## X-Embeds: Ace2, Ace3, Deformat
+## X-Category: Miscellaneous
+## Version: 1.0
+
+embeds.xml
+
+locale-enUS.lua
+Broker_Group.lua
