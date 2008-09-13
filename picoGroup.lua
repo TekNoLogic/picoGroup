@@ -5,6 +5,7 @@ local loottypes = {freeforall = "FFA", group = "Group", master = "ML", needbefor
 local classcolors = {}
 for i,v in pairs(RAID_CLASS_COLORS) do classcolors[i] = string.format("|cff%02x%02x%02x", v.r*255, v.g*255, v.b*255) end
 local names = setmetatable({}, {__index = function(t, i)
+	if not i then return i end
 	local _, class = UnitClass(i)
 	if not class then return i end
 	local v = classcolors[class].. i
