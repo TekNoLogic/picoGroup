@@ -17,7 +17,7 @@ end})
 local function GetLootTypeText() return (GetNumPartyMembers() > 0 or GetNumRaidMembers() > 0) and ITEM_QUALITY_COLORS[GetLootThreshold()].hex .. loottypes[GetLootMethod()] or "|cff9d9d9dSolo" end
 
 
-local dataobj = ldb:NewDataObject("picoGroup", {icon = "Interface\\Buttons\\UI-GroupLoot-Dice-Up", text = GetLootTypeText()})
+local dataobj = ldb:NewDataObject("picoGroup", {type = "data source", icon = "Interface\\Buttons\\UI-GroupLoot-Dice-Up", text = GetLootTypeText()})
 
 
 local function Update() dataobj.text = GetLootTypeText() end
