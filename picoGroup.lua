@@ -15,21 +15,22 @@ local names = setmetatable({}, {__index = function(t, i)
 	return v
 end})
 
+local function GetGroupTypeText()
+	return GetNumRaidMembers() > 0 and (raidtypes[GetRaidDifficulty()].. "|r - ")
+		or GetNumPartyMembers() > 0 and (dungeontypes[GetDungeonDifficulty()].. "|r - ")
+		or (ITEM_QUALITY_COLORS[0].hex.."Solo")
+end
+
+
 local function GetLootTypeText()
-	if GetNumRaidMembers() > 0 then
-		return raidtypes[GetRaidDifficulty()].. " ".. ITEM_QUALITY_COLORS[GetLootThreshold()].hex.. loottypes[GetLootMethod()]
-	elseif GetNumPartyMembers() > 0 then
-		return dungeontypes[GetDungeonDifficulty()].. " ".. ITEM_QUALITY_COLORS[GetLootThreshold()].hex .. loottypes[GetLootMethod()]
-	else
-		return ITEM_QUALITY_COLORS[0].hex.."Solo"
-	end
+	return (GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0) and (ITEM_QUALITY_COLORS[GetLootThreshold()].hex.. loottypes[GetLootMethod()]) or ""
 end
 
 
 local dataobj = ldb:NewDataObject("picoGroup", {type = "data source", icon = "Interface\\Buttons\\UI-GroupLoot-Dice-Up", text = GetLootTypeText()})
 
 
-local function Update() dataobj.text = GetLootTypeText() end
+local function Update() dataobj.text = GetGroupTypeText().. GetLootTypeText() end
 ae.RegisterEvent("picoGroup", "RAID_ROSTER_UPDATE", Update)
 ae.RegisterEvent("picoGroup", "PARTY_MEMBERS_CHANGED", Update)
 ae.RegisterEvent("picoGroup", "PARTY_LOOT_METHOD_CHANGED", Update)
