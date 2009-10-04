@@ -2,6 +2,8 @@
 local ldb, ae = LibStub:GetLibrary("LibDataBroker-1.1"), LibStub("AceEvent-3.0")
 
 local loottypes = {freeforall = "FFA", group = "Group", master = "ML", needbeforegreed = "NBG", roundrobin = "RR"}
+local raidtypes = {ITEM_QUALITY_COLORS[4].hex.."10", ITEM_QUALITY_COLORS[4].hex.."25", ITEM_QUALITY_COLORS[5].hex.."10H", ITEM_QUALITY_COLORS[5].hex.."25H"}
+local dungeontypes = {ITEM_QUALITY_COLORS[2].hex.."5", ITEM_QUALITY_COLORS[3].hex.."5H"}
 local classcolors = {}
 for i,v in pairs(RAID_CLASS_COLORS) do classcolors[i] = string.format("|cff%02x%02x%02x", v.r*255, v.g*255, v.b*255) end
 local names = setmetatable({}, {__index = function(t, i)
@@ -13,8 +15,15 @@ local names = setmetatable({}, {__index = function(t, i)
 	return v
 end})
 
-
-local function GetLootTypeText() return (GetNumPartyMembers() > 0 or GetNumRaidMembers() > 0) and ITEM_QUALITY_COLORS[GetLootThreshold()].hex .. loottypes[GetLootMethod()] or "|cff9d9d9dSolo" end
+local function GetLootTypeText()
+	if GetNumRaidMembers() > 0 then
+		return raidtypes[GetRaidDifficulty()].. " ".. ITEM_QUALITY_COLORS[GetLootThreshold()].hex.. loottypes[GetLootMethod()]
+	elseif GetNumPartyMembers() > 0 then
+		return dungeontypes[GetDungeonDifficulty()].. " ".. ITEM_QUALITY_COLORS[GetLootThreshold()].hex .. loottypes[GetLootMethod()]
+	else
+		return ITEM_QUALITY_COLORS[0].hex.."Solo"
+	end
+end
 
 
 local dataobj = ldb:NewDataObject("picoGroup", {type = "data source", icon = "Interface\\Buttons\\UI-GroupLoot-Dice-Up", text = GetLootTypeText()})
@@ -46,6 +55,16 @@ function dataobj:OnEnter()
 	GameTooltip:ClearLines()
 
 	GameTooltip:AddLine("picoGroup")
+
+	if GetNumRaidMembers() > 0 then
+		GameTooltip:AddDoubleLine(RAID_DIFFICULTY, _G["RAID_DIFFICULTY"..GetRaidDifficulty()], nil,nil,nil, 1,1,1)
+	elseif GetNumPartyMembers() > 0 then
+		GameTooltip:AddDoubleLine(DUNGEON_DIFFICULTY, _G["DUNGEON_DIFFICULTY"..GetDungeonDifficulty()], nil,nil,nil, 1,1,1)
+	else
+		GameTooltip:AddLine("Not in a group", 1,1,1)
+		return GameTooltip:Show()
+	end
+
 	GameTooltip:AddDoubleLine("Loot method", GetLootTypeText())
 
 	local _, pML, rML = GetLootMethod()
