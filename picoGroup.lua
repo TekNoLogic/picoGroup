@@ -51,7 +51,7 @@ end
 
 function dataobj.OnLeave() GameTooltip:Hide() end
 function dataobj:OnEnter()
- 	GameTooltip:SetOwner(self, "ANCHOR_NONE")
+	GameTooltip:SetOwner(self, "ANCHOR_NONE")
 	GameTooltip:SetPoint(GetTipAnchor(self))
 	GameTooltip:ClearLines()
 
@@ -95,4 +95,70 @@ function dataobj:OnEnter()
 	end
 
 	GameTooltip:Show()
+end
+
+
+local dropdown, dropdowninit, menuitems
+function dataobj:OnClick(button)
+	if (GetNumRaidMembers() + GetNumPartyMembers()) == 0 then return end
+	if not dropdown then
+		dropdown = CreateFrame("Frame", "picoGroupDownFrame", self, "UIDropDownMenuTemplate")
+
+		local function sdd(self) SetDungeonDifficulty(self.value) end
+		local function srd(self)
+			SetRaidDifficulty(self.value)
+			if GetNumRaidMembers() == 0 then ConvertToRaid() end
+		end
+		local function slm(self) SetLootMethod(self.value, self.value == "master" and UnitName("player") or nil) end
+		local function slt(self) SetLootThreshold(self.value) end
+		local function gdd(i) return GetNumRaidMembers() == 0 and GetDungeonDifficulty() == i end
+		local function grd(i) return GetNumRaidMembers() > 0 and GetRaidDifficulty() == i end
+		local function glm(i) return GetLootMethod() == i end
+		local function glt(i) return GetLootThreshold() == i end
+		menuitems = {
+			{text = "Group Mode", isTitle = true, leaderonly = true},
+			{text = DUNGEON_DIFFICULTY1, value = 1, func = sdd, checkedfunc = gdd, leaderonly = true},
+			{text = DUNGEON_DIFFICULTY2, value = 2, func = sdd, checkedfunc = gdd, leaderonly = true},
+			{text = RAID_DIFFICULTY1, value = 1, func = srd, checkedfunc = grd, leaderonly = true},
+			{text = RAID_DIFFICULTY2, value = 2, func = srd, checkedfunc = grd, leaderonly = true},
+			{text = RAID_DIFFICULTY3, value = 3, func = srd, checkedfunc = grd, leaderonly = true},
+			{text = RAID_DIFFICULTY4, value = 4, func = srd, checkedfunc = grd, leaderonly = true},
+
+			{disabled = true, leaderonly = true},
+			-- local loottypes = {freeforall = "FFA", group = "Group", master = "ML", needbeforegreed = "NBG", roundrobin = "RR"}
+			{text = LOOT_METHOD, isTitle = true, leaderonly = true},
+			{text = LOOT_FREE_FOR_ALL,      value = "freeforall",      func = slm, checkedfunc = glm, leaderonly = true},
+			{text = LOOT_ROUND_ROBIN,       value = "roundrobin",      func = slm, checkedfunc = glm, leaderonly = true},
+			{text = LOOT_MASTER_LOOTER,     value = "master",          func = slm, checkedfunc = glm, leaderonly = true},
+			{text = LOOT_GROUP_LOOT,        value = "group",           func = slm, checkedfunc = glm, leaderonly = true},
+			{text = LOOT_NEED_BEFORE_GREED, value = "needbeforegreed", func = slm, checkedfunc = glm, leaderonly = true},
+
+			{disabled = true, leaderonly = true},
+			{text = LOOT_THRESHOLD, isTitle = true, leaderonly = true},
+			{text = ITEM_QUALITY_COLORS[2].hex..ITEM_QUALITY2_DESC, value = 2, func = slt, checkedfunc = glt, leaderonly = true},
+			{text = ITEM_QUALITY_COLORS[3].hex..ITEM_QUALITY3_DESC, value = 3, func = slt, checkedfunc = glt, leaderonly = true},
+			{text = ITEM_QUALITY_COLORS[4].hex..ITEM_QUALITY4_DESC, value = 4, func = slt, checkedfunc = glt, leaderonly = true},
+
+			{disabled = true, leaderonly = true},
+			{text = RESET_INSTANCES, func = function() StaticPopup_Show("CONFIRM_RESET_INSTANCES") end, leaderonly = true},
+			{disabled = true, leaderonly = true},
+			{text = OPT_OUT_LOOT_TITLE:gsub(":.+$", ""), func = function() SetOptOutOfLoot(not GetOptOutOfLoot()) end, checked = GetOptOutOfLoot},
+			{disabled = true},
+			{text = PARTY_LEAVE, func = LeaveParty},
+		}
+		function dropdowninit()
+			local isleader = IsRaidLeader() or IsRaidOfficer() or IsPartyLeader()
+			for i,v in ipairs(menuitems) do
+				if not v.leaderonly or isleader then
+					if v.checkedfunc then v.checked = v.checkedfunc(v.value) end
+					UIDropDownMenu_AddButton(v, 1)
+				end
+			end
+		end
+	end
+
+	GameTooltip:Hide()
+	UIDropDownMenu_Initialize(dropdown, dropdowninit, "MENU")
+	UIDropDownMenu_SetAnchor(dropdown, 0, 0, GetTipAnchor(self))
+	ToggleDropDownMenu(1, "picoGroupDownFrame", dropdown, "meh")
 end
