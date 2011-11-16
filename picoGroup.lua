@@ -4,6 +4,12 @@ local ldb, ae = LibStub:GetLibrary("LibDataBroker-1.1"), LibStub("AceEvent-3.0")
 local loottypes = {freeforall = "FFA", group = "Group", master = "ML", needbeforegreed = "NBG", roundrobin = "RR"}
 local raidtypes = {ITEM_QUALITY_COLORS[4].hex.."10", ITEM_QUALITY_COLORS[4].hex.."25", ITEM_QUALITY_COLORS[5].hex.."10H", ITEM_QUALITY_COLORS[5].hex.."25H"}
 local dungeontypes = {ITEM_QUALITY_COLORS[2].hex.."5", ITEM_QUALITY_COLORS[3].hex.."5H"}
+local icons = {
+	tank = "|TInterface\\LFGFrame\\LFGRole.blp:0:0:0:0:64:16:32:47:1:16|t",
+	heal = "|TInterface\\LFGFrame\\LFGRole.blp:0:0:0:0:64:16:48:63:1:16|t",
+	dps  = "|TInterface\\LFGFrame\\LFGRole.blp:0:0:0:0:64:16:16:31:1:16|t",
+	none = "|TInterface\\RAIDFRAME\\ReadyCheck-NotReady.blp:0|t"
+}
 local classcolors = {}
 for i,v in pairs(RAID_CLASS_COLORS) do classcolors[i] = string.format("|cff%02x%02x%02x", v.r*255, v.g*255, v.b*255) end
 local names = setmetatable({}, {__index = function(t, i)
@@ -27,13 +33,31 @@ local function GetLootTypeText()
 end
 
 
-local dataobj = ldb:NewDataObject("picoGroup", {type = "data source", icon = "Interface\\Buttons\\UI-GroupLoot-Dice-Up", text = GetLootTypeText()})
+local function GetText()
+	if GetLFGMode() == "queued" then
+		local _, _, tank, healer, dps, _, instance, _, _, _, _, average, elapsed = GetLFGQueueStats()
+		dps = dps or 3
+
+		return "LFG ".. (tank == 0 and icons.tank or icons.none)
+			..(healer == 0 and icons.heal or icons.none)
+			..(dps    <= 2 and icons.dps  or icons.none)
+			..(dps    <= 1 and icons.dps  or icons.none)
+			..(dps    == 0 and icons.dps  or icons.none)
+	else
+		return GetGroupTypeText().. GetLootTypeText()
+	end
+end
 
 
-local function Update() dataobj.text = GetGroupTypeText().. GetLootTypeText() end
+local dataobj = ldb:NewDataObject("picoGroup", {type = "data source", icon = "Interface\\Buttons\\UI-GroupLoot-Dice-Up", text = GetText()})
+
+
+local function Update() dataobj.text = GetText() end
 ae.RegisterEvent("picoGroup", "RAID_ROSTER_UPDATE", Update)
 ae.RegisterEvent("picoGroup", "PARTY_MEMBERS_CHANGED", Update)
 ae.RegisterEvent("picoGroup", "PARTY_LOOT_METHOD_CHANGED", Update)
+ae.RegisterEvent("picoGroup", "LFG_UPDATE", Update)
+ae.RegisterEvent("picoGroup", "LFG_QUEUE_STATUS_UPDATE", Update)
 
 
 ------------------------
@@ -61,10 +85,23 @@ function dataobj:OnEnter()
 		GameTooltip:AddDoubleLine(RAID_DIFFICULTY, _G["RAID_DIFFICULTY"..GetRaidDifficulty()], nil,nil,nil, 1,1,1)
 	elseif GetNumPartyMembers() > 0 then
 		GameTooltip:AddDoubleLine(DUNGEON_DIFFICULTY, _G["DUNGEON_DIFFICULTY"..GetDungeonDifficulty()], nil,nil,nil, 1,1,1)
+	elseif GetLFGMode() == "queued" then
+		GameTooltip:AddLine("Looking for group", 0.75,1,0.75)
 	else
 		GameTooltip:AddLine("Not in a group", 1,1,1)
-		return GameTooltip:Show()
 	end
+
+	if GetLFGMode() == "queued" then
+		local _, _, _, _, _, _, instance, _, _, _, _, mywait, elapsed = GetLFGQueueStats()
+		average = average or 0
+		mywait  = mywait  or 0
+
+		if instance then GameTooltip:AddLine(instance, 1,1,1) end
+		if mywait > 0 then GameTooltip:AddDoubleLine(AVERAGE_WAIT_TIME, SecondsToTime(mywait), nil,nil,nil, 1,1,1) end
+		if elapsed then GameTooltip:AddDoubleLine(TIME_IN_QUEUE:gsub(": %%s", ""), SecondsToTime(GetTime() - elapsed), nil,nil,nil, 1,1,1) end
+	end
+
+	if GetNumRaidMembers() == 0 and GetNumPartyMembers() == 0 then return GameTooltip:Show() end
 
 	GameTooltip:AddDoubleLine("Loot method", GetLootTypeText())
 
