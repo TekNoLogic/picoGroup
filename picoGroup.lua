@@ -2,7 +2,7 @@
 local ldb, ae = LibStub:GetLibrary("LibDataBroker-1.1"), LibStub("AceEvent-3.0")
 
 local loottypes = {freeforall = "FFA", group = "Group", master = "ML", needbeforegreed = "NBG", roundrobin = "RR"}
-local raidtypes = {ITEM_QUALITY_COLORS[4].hex.."10", ITEM_QUALITY_COLORS[4].hex.."25", ITEM_QUALITY_COLORS[5].hex.."10H", ITEM_QUALITY_COLORS[5].hex.."25H"}
+local raidtypes = {ITEM_QUALITY_COLORS[3].hex.."10", ITEM_QUALITY_COLORS[4].hex.."25", ITEM_QUALITY_COLORS[5].hex.."10H", ITEM_QUALITY_COLORS[5].hex.."25H"}
 local dungeontypes = {ITEM_QUALITY_COLORS[2].hex.."5", ITEM_QUALITY_COLORS[3].hex.."5H"}
 local icons = {
 	tank = "|TInterface\\LFGFrame\\LFGRole.blp:0:0:0:0:64:16:32:47:1:16|t",
@@ -22,19 +22,19 @@ local names = setmetatable({}, {__index = function(t, i)
 end})
 
 local function GetGroupTypeText()
-	return GetNumRaidMembers() > 0 and (raidtypes[GetRaidDifficulty()].. "|r - ")
-		or GetNumPartyMembers() > 0 and (dungeontypes[GetDungeonDifficulty()].. "|r - ")
+	return UnitInRaid("player") and (raidtypes[GetRaidDifficulty()].. "|r - ")
+		or UnitInParty("player") and (dungeontypes[GetDungeonDifficultyID()].. "|r - ")
 		or (ITEM_QUALITY_COLORS[0].hex.."Solo")
 end
 
 
 local function GetLootTypeText()
-	return (GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0) and (ITEM_QUALITY_COLORS[GetLootThreshold()].hex.. loottypes[GetLootMethod()]) or ""
+	return (UnitInRaid("player") or UnitInParty("player")) and (ITEM_QUALITY_COLORS[GetLootThreshold()].hex.. loottypes[GetLootMethod()]) or ""
 end
 
 
 local function GetText()
-	if GetLFGMode() == "queued" then
+	if GetLFGMode(LE_LFG_CATEGORY_LFD) == "queued" then
 		local _, _, tank, healer, dps, _, instance, _, _, _, _, average, elapsed = GetLFGQueueStats()
 		dps = dps or 3
 
@@ -53,7 +53,8 @@ local dataobj = ldb:NewDataObject("picoGroup", {type = "data source", icon = "In
 
 
 local function Update() dataobj.text = GetText() end
-ae.RegisterEvent("picoGroup", "RAID_ROSTER_UPDATE", Update)
+ae.RegisterEvent("picoGroup", "PARTY_CONVERTED_TO_RAID", Update)
+ae.RegisterEvent("picoGroup", "GROUP_ROSTER_UPDATE", Update)
 ae.RegisterEvent("picoGroup", "PARTY_MEMBERS_CHANGED", Update)
 ae.RegisterEvent("picoGroup", "PARTY_LOOT_METHOD_CHANGED", Update)
 ae.RegisterEvent("picoGroup", "LFG_UPDATE", Update)
@@ -81,17 +82,17 @@ function dataobj:OnEnter()
 
 	GameTooltip:AddLine("picoGroup")
 
-	if GetNumRaidMembers() > 0 then
+	if UnitInRaid("player") then
 		GameTooltip:AddDoubleLine(RAID_DIFFICULTY, _G["RAID_DIFFICULTY"..GetRaidDifficulty()], nil,nil,nil, 1,1,1)
-	elseif GetNumPartyMembers() > 0 then
-		GameTooltip:AddDoubleLine(DUNGEON_DIFFICULTY, _G["DUNGEON_DIFFICULTY"..GetDungeonDifficulty()], nil,nil,nil, 1,1,1)
-	elseif GetLFGMode() == "queued" then
+	elseif UnitInParty("player") then
+		GameTooltip:AddDoubleLine(DUNGEON_DIFFICULTY, _G["DUNGEON_DIFFICULTY"..GetDungeonDifficultyID()], nil,nil,nil, 1,1,1)
+	elseif GetLFGMode(LE_LFG_CATEGORY_LFD) == "queued" then
 		GameTooltip:AddLine("Looking for group", 0.75,1,0.75)
 	else
 		GameTooltip:AddLine("Not in a group", 1,1,1)
 	end
 
-	if GetLFGMode() == "queued" then
+	if GetLFGMode(LE_LFG_CATEGORY_LFD) == "queued" then
 		local _, _, _, _, _, _, instance, _, _, _, _, mywait, elapsed = GetLFGQueueStats()
 		average = average or 0
 		mywait  = mywait  or 0
@@ -101,7 +102,7 @@ function dataobj:OnEnter()
 		if elapsed then GameTooltip:AddDoubleLine(TIME_IN_QUEUE:gsub(": %%s", ""), SecondsToTime(GetTime() - elapsed), nil,nil,nil, 1,1,1) end
 	end
 
-	if GetNumRaidMembers() == 0 and GetNumPartyMembers() == 0 then return GameTooltip:Show() end
+	if GetNumGroupMembers() == 0 then return GameTooltip:Show() end
 
 	GameTooltip:AddDoubleLine("Loot method", GetLootTypeText())
 
@@ -111,14 +112,15 @@ function dataobj:OnEnter()
 	if UnitInRaid("player") then
 		local officers
 
-		for i=1,GetNumRaidMembers() do
+		for i=1,GetNumGroupMembers() do
 			local name, rank, _, _, _, _, _, _, _, _, isML = GetRaidRosterInfo(i)
 			if rank == 1 then officers = true
 			elseif rank == 2 then GameTooltip:AddDoubleLine("Leader", names[name]) end
 		end
 
 		if officers then
-			for i=1,GetNumRaidMembers() do
+			for i=1,GetNumGroupMembers() do
+				UnitIsRaidOfficer('player')
 				local name, rank = GetRaidRosterInfo(i)
 				if rank == 1 then
 					GameTooltip:AddDoubleLine(officers and "Officers" or "", names[name])
@@ -127,8 +129,12 @@ function dataobj:OnEnter()
 			end
 		end
 	elseif UnitInParty("player") then
-		local i = GetPartyLeaderIndex()
-		GameTooltip:AddDoubleLine("Leader", names[UnitName(i == 0 and "player" or "party"..i)])
+		for i=1,GetNumGroupMembers() do
+			local unit = i == 0 and "player" or "party"..i
+			if UnitIsGroupLeader(unit) then
+				GameTooltip:AddDoubleLine("Leader", names[UnitName(unit)])
+			end
+		end
 	end
 
 	GameTooltip:Show()
@@ -137,23 +143,27 @@ end
 
 local dropdown, dropdowninit, menuitems
 function dataobj:OnClick(button)
-	if (GetNumRaidMembers() + GetNumPartyMembers()) == 0 then return end
+	if GetNumGroupMembers() == 0 then return end
 	if not dropdown then
 		dropdown = CreateFrame("Frame", "picoGroupDownFrame", self, "UIDropDownMenuTemplate")
 
-		local function sdd(self) SetDungeonDifficulty(self.value) end
+		local function sdd(self)
+			SetDungeonDifficultyID(self.value)
+			if UnitInRaid("player") then ConvertToParty() end
+		end
 		local function srd(self)
 			SetRaidDifficulty(self.value)
-			if GetNumRaidMembers() == 0 then ConvertToRaid() end
+			if not UnitInRaid("player") then ConvertToRaid() end
 		end
 		local function slm(self) SetLootMethod(self.value, self.value == "master" and UnitName("player") or nil) end
 		local function slt(self) SetLootThreshold(self.value) end
-		local function gdd(i) return GetNumRaidMembers() == 0 and GetDungeonDifficulty() == i end
-		local function grd(i) return GetNumRaidMembers() > 0 and GetRaidDifficulty() == i end
+		local function gdd(i) return not UnitInRaid("player") and GetDungeonDifficultyID() == i end
+		local function grd(i) return UnitInRaid("player") and GetRaidDifficulty() == i end
 		local function glm(i) return GetLootMethod() == i end
 		local function glt(i) return GetLootThreshold() == i end
+		local LEADERSPACE = {disabled = true, leaderonly = true, notCheckable = true}
 		menuitems = {
-			{text = "Group Mode", isTitle = true, leaderonly = true},
+			{text = "Group Mode", isTitle = true, leaderonly = true, notCheckable = true},
 			{text = DUNGEON_DIFFICULTY1, value = 1, func = sdd, checkedfunc = gdd, leaderonly = true},
 			{text = DUNGEON_DIFFICULTY2, value = 2, func = sdd, checkedfunc = gdd, leaderonly = true},
 			{text = RAID_DIFFICULTY1, value = 1, func = srd, checkedfunc = grd, leaderonly = true},
@@ -161,30 +171,30 @@ function dataobj:OnClick(button)
 			{text = RAID_DIFFICULTY3, value = 3, func = srd, checkedfunc = grd, leaderonly = true},
 			{text = RAID_DIFFICULTY4, value = 4, func = srd, checkedfunc = grd, leaderonly = true},
 
-			{disabled = true, leaderonly = true},
+			LEADERSPACE,
 			-- local loottypes = {freeforall = "FFA", group = "Group", master = "ML", needbeforegreed = "NBG", roundrobin = "RR"}
-			{text = LOOT_METHOD, isTitle = true, leaderonly = true},
+			{text = LOOT_METHOD, isTitle = true, leaderonly = true, notCheckable = true},
 			{text = LOOT_FREE_FOR_ALL,      value = "freeforall",      func = slm, checkedfunc = glm, leaderonly = true},
 			{text = LOOT_ROUND_ROBIN,       value = "roundrobin",      func = slm, checkedfunc = glm, leaderonly = true},
 			{text = LOOT_MASTER_LOOTER,     value = "master",          func = slm, checkedfunc = glm, leaderonly = true},
 			{text = LOOT_GROUP_LOOT,        value = "group",           func = slm, checkedfunc = glm, leaderonly = true},
 			{text = LOOT_NEED_BEFORE_GREED, value = "needbeforegreed", func = slm, checkedfunc = glm, leaderonly = true},
 
-			{disabled = true, leaderonly = true},
-			{text = LOOT_THRESHOLD, isTitle = true, leaderonly = true},
+			LEADERSPACE,
+			{text = LOOT_THRESHOLD, isTitle = true, leaderonly = true, notCheckable = true},
 			{text = ITEM_QUALITY_COLORS[2].hex..ITEM_QUALITY2_DESC, value = 2, func = slt, checkedfunc = glt, leaderonly = true},
 			{text = ITEM_QUALITY_COLORS[3].hex..ITEM_QUALITY3_DESC, value = 3, func = slt, checkedfunc = glt, leaderonly = true},
 			{text = ITEM_QUALITY_COLORS[4].hex..ITEM_QUALITY4_DESC, value = 4, func = slt, checkedfunc = glt, leaderonly = true},
 
-			{disabled = true, leaderonly = true},
-			{text = RESET_INSTANCES, func = function() StaticPopup_Show("CONFIRM_RESET_INSTANCES") end, leaderonly = true},
-			{disabled = true, leaderonly = true},
-			{text = OPT_OUT_LOOT_TITLE:gsub(":.+$", ""), func = function() SetOptOutOfLoot(not GetOptOutOfLoot()) end, checked = GetOptOutOfLoot},
-			{disabled = true},
-			{text = PARTY_LEAVE, func = LeaveParty},
+			{disabled = true, notCheckable = true},
+			{text = OPT_OUT_LOOT_TITLE:gsub(":.+$", ""), func = function() SetOptOutOfLoot(not GetOptOutOfLoot()) end, checked = GetOptOutOfLoot, isNotRadio = true},
+			LEADERSPACE,
+			{text = RESET_INSTANCES, func = function() StaticPopup_Show("CONFIRM_RESET_INSTANCES") end, leaderonly = true, notCheckable = true},
+			LEADERSPACE,
+			{text = PARTY_LEAVE, func = LeaveParty, notCheckable = true},
 		}
 		function dropdowninit()
-			local isleader = IsRaidLeader() or IsRaidOfficer() or IsPartyLeader()
+			local isleader = UnitIsRaidOfficer('player') or UnitIsGroupLeader('player')
 			for i,v in ipairs(menuitems) do
 				if not v.leaderonly or isleader then
 					if v.checkedfunc then v.checked = v.checkedfunc(v.value) end
