@@ -3,7 +3,7 @@ local ldb, ae = LibStub:GetLibrary("LibDataBroker-1.1"), LibStub("AceEvent-3.0")
 
 local loottypes = {freeforall = "FFA", group = "Group", master = "ML", needbeforegreed = "NBG", roundrobin = "RR"}
 local raidtypes = {ITEM_QUALITY_COLORS[3].hex.."10", ITEM_QUALITY_COLORS[4].hex.."25", ITEM_QUALITY_COLORS[5].hex.."10H", ITEM_QUALITY_COLORS[5].hex.."25H"}
-local dungeontypes = {ITEM_QUALITY_COLORS[2].hex.."5", ITEM_QUALITY_COLORS[3].hex.."5H"}
+local dungeontypes = {ITEM_QUALITY_COLORS[2].hex.."5", ITEM_QUALITY_COLORS[3].hex.."5H", nil, nil, nil, nil, nil, ITEM_QUALITY_COLORS[4].hex.."5C"}
 local icons = {
 	tank = "|TInterface\\LFGFrame\\LFGRole.blp:0:0:0:0:64:16:32:47:1:16|t",
 	heal = "|TInterface\\LFGFrame\\LFGRole.blp:0:0:0:0:64:16:48:63:1:16|t",
@@ -166,6 +166,7 @@ function dataobj:OnClick(button)
 			{text = "Group Mode", isTitle = true, leaderonly = true, notCheckable = true},
 			{text = DUNGEON_DIFFICULTY1, value = 1, func = sdd, checkedfunc = gdd, leaderonly = true},
 			{text = DUNGEON_DIFFICULTY2, value = 2, func = sdd, checkedfunc = gdd, leaderonly = true},
+			{text = CHALLENGE_MODE, value = 8, func = sdd, checkedfunc = gdd, leaderonly = true},
 			{text = RAID_DIFFICULTY1, value = 1, func = srd, checkedfunc = grd, leaderonly = true},
 			{text = RAID_DIFFICULTY2, value = 2, func = srd, checkedfunc = grd, leaderonly = true},
 			{text = RAID_DIFFICULTY3, value = 3, func = srd, checkedfunc = grd, leaderonly = true},
@@ -190,6 +191,7 @@ function dataobj:OnClick(button)
 			{text = OPT_OUT_LOOT_TITLE:gsub(":.+$", ""), func = function() SetOptOutOfLoot(not GetOptOutOfLoot()) end, checked = GetOptOutOfLoot, isNotRadio = true},
 			LEADERSPACE,
 			{text = RESET_INSTANCES, func = function() StaticPopup_Show("CONFIRM_RESET_INSTANCES") end, leaderonly = true, notCheckable = true},
+			{text = RESET_CHALLENGE_MODE, func = function() StaticPopup_Show("CONFIRM_RESET_CHALLENGE_MODE") end, leaderonly = true, notCheckable = true},
 			LEADERSPACE,
 			{text = PARTY_LEAVE, func = LeaveParty, notCheckable = true},
 		}
